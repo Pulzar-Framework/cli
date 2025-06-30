@@ -1,6 +1,6 @@
 {
   "name": "@pulzar/cli",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Ultimate command-line interface for Pulzar framework - scaffolding, development server, building, testing, code generation, health diagnostics, security auditing, and deployment tools for modern Node.js applications",
   "type": "module",
   "main": "./dist/index.js",
@@ -112,10 +112,10 @@
   ],
   "author": "Pulzar Team",
   "license": "MIT",
-  "homepage": "https://pulzar.dev",
+  "homepage": "https://github.com/pulzar-framework",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/pulzar/pulzar.git",
+    "url": "git+https://github.com/pulzar-framework/cli.git",
     "directory": "packages/cli"
   },
   "bugs": {
