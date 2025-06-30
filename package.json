@@ -1,6 +1,6 @@
 {
   "name": "@pulzar/cli",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Ultimate command-line interface for Pulzar framework - scaffolding, development server, building, testing, code generation, health diagnostics, security auditing, and deployment tools for modern Node.js applications",
   "type": "module",
   "main": "./dist/index.js",
