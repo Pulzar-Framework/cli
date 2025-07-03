@@ -95,30 +95,30 @@ export async function doctorCommand(options: DoctorOptions = {}) {
 async function checkConfiguration(): Promise<CheckResult[]> {
   const checks: CheckResult[] = [];
 
-  // Check ignite.config.ts
+  // Check pulzar.config.ts
   try {
-    await fs.access("ignite.config.ts");
-    const content = await fs.readFile("ignite.config.ts", "utf8");
+    await fs.access("pulzar.config.ts");
+    const content = await fs.readFile("pulzar.config.ts", "utf8");
 
     if (content.includes("defineConfig")) {
       checks.push({
-        name: "pulzar Configuration",
+        name: "Framework Configuration",
         status: "pass",
-        message: "ignite.config.ts is properly configured",
+        message: "pulzar.config.ts is properly configured",
       });
     } else {
       checks.push({
-        name: "pulzar Configuration",
-        status: "fail",
-        message: "ignite.config.ts missing defineConfig usage",
+        name: "Framework Configuration",
+        status: "warn",
+        message: "pulzar.config.ts missing defineConfig usage",
         fixable: true,
       });
     }
   } catch {
     checks.push({
-      name: "pulzar Configuration",
+      name: "Framework Configuration",
       status: "fail",
-      message: "ignite.config.ts not found",
+      message: "pulzar.config.ts not found",
       fixable: true,
     });
   }
@@ -247,7 +247,7 @@ async function checkDependencies(): Promise<CheckResult[]> {
     const pkg = JSON.parse(await fs.readFile("package.json", "utf8"));
     const deps = { ...pkg.dependencies, ...pkg.devDependencies };
 
-    const corePackages = ["@ignite/core", "fastify", "typescript", "zod"];
+    const corePackages = ["@pulzar/core", "typescript", "zod"];
     const missing = corePackages.filter((pkg) => !deps[pkg]);
 
     if (missing.length === 0) {
@@ -523,12 +523,15 @@ function displayResults(checks: CheckResult[], verbose = false) {
   console.log("\n📋 Health Check Results:");
   console.log("========================");
 
-  const grouped = checks.reduce((acc, check) => {
-    const category = check.name.split(" ")[0];
-    if (!acc[category]) acc[category] = [];
-    acc[category].push(check);
-    return acc;
-  }, {} as Record<string, CheckResult[]>);
+  const grouped = checks.reduce(
+    (acc, check) => {
+      const category = check.name.split(" ")[0];
+      if (!acc[category]) acc[category] = [];
+      acc[category].push(check);
+      return acc;
+    },
+    {} as Record<string, CheckResult[]>
+  );
 
   for (const [category, categoryChecks] of Object.entries(grouped)) {
     console.log(`\n${category}:`);
@@ -595,20 +598,61 @@ async function autoFix(checks: CheckResult[]) {
 }
 
 async function fixConfiguration(check: CheckResult) {
-  if (check.name.includes("ignite.config.ts")) {
-    // Create basic ignite.config.ts
-    const config = `import { defineConfig } from "@ignite/core";
+  if (check.name.includes("pulzar.config.ts")) {
+    // Create basic pulzar.config.ts
+    const config = `import { defineConfig } from "@pulzar/core";
 
 export default defineConfig({
-  server: {
+  app: {
+    name: "pulzar-app",
+    version: "1.0.0",
     port: 3000,
-    host: "localhost"
+    host: "localhost",
+    env: "development"
   },
-  plugins: []
+  cors: {
+    enabled: true,
+    origin: "*",
+    credentials: true
+  },
+  compression: {
+    enabled: true,
+    level: 6
+  },
+  security: {
+    helmet: {
+      enabled: true
+    },
+    rateLimit: {
+      enabled: true,
+      windowMs: 15 * 60 * 1000,
+      max: 100
+    }
+  },
+  logging: {
+    level: "info",
+    format: "json"
+  },
+  database: {},
+  redis: {},
+  jwt: {
+    secret: "your-secret-key",
+    expiresIn: "24h"
+  },
+  openapi: {
+    enabled: true,
+    path: "/docs",
+    title: "Pulzar API",
+    version: "1.0.0"
+  },
+  tracing: {
+    enabled: false,
+    serviceName: "pulzar-app"
+  }
 });
 `;
-    await fs.writeFile("ignite.config.ts", config);
-    logger.info("Created ignite.config.ts");
+    await fs.writeFile("pulzar.config.ts", config);
+    logger.info("Created pulzar.config.ts");
   }
 }
 

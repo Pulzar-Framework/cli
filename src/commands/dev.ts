@@ -65,7 +65,7 @@ async function loadConfig(configPath: string): Promise<any> {
   } catch (error) {
     logger.error("Failed to load configuration", { configPath, error });
     return {
-      entry: "src/index.ts",
+      entry: "src/main.ts",
       port: 3000,
       host: "localhost",
     };
@@ -119,7 +119,7 @@ async function tryTsxDev(config: any, options: DevOptions): Promise<boolean> {
       return false;
     }
 
-    const entryFile = config.entry || "src/index.ts";
+    const entryFile = config.entry || "src/main.ts";
     const args = ["watch", "--clear-screen=false", entryFile];
 
     logger.info("Starting development server with tsx", {
@@ -182,7 +182,7 @@ async function tryTsNodeDev(
       return false;
     }
 
-    const entryFile = config.entry || "src/index.ts";
+    const entryFile = config.entry || "src/main.ts";
     const args = [
       "--respawn",
       "--transpile-only",
@@ -241,7 +241,7 @@ async function tryNodemonDev(config: any, options: DevOptions): Promise<void> {
       ".bin",
       "nodemon"
     );
-    const entryFile = config.entry || "src/index.ts";
+    const entryFile = config.entry || "src/main.ts";
 
     const args = [
       "--exec",

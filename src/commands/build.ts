@@ -84,7 +84,7 @@ async function loadConfig(configPath: string): Promise<any> {
   } catch (error) {
     logger.error("Failed to load configuration", { configPath, error });
     return {
-      entry: "src/index.ts",
+      entry: "src/main.ts",
       outDir: "dist",
       target: "node",
       minify: false,
@@ -133,7 +133,7 @@ async function buildTypeScript(
 
     if (esbuild) {
       const buildOptions = {
-        entryPoints: [config.entry || "src/index.ts"],
+        entryPoints: [config.entry || "src/main.ts"],
         outdir: options.out,
         platform: config.target === "edge" ? "neutral" : "node",
         target: config.target === "edge" ? "es2022" : "node18",
@@ -230,7 +230,7 @@ async function buildForEdge(config: any, options: BuildOptions): Promise<void> {
 
   if (esbuild) {
     await esbuild.build({
-      entryPoints: [config.entry || "src/index.ts"],
+      entryPoints: [config.entry || "src/main.ts"],
       outfile: `${options.out}/index.js`,
       platform: "neutral",
       target: "es2022",

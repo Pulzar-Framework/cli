@@ -5,15 +5,28 @@ export interface RouteOptions {
   path: string;
 }
 
+async function writeFileIfAbsent(filePath: string, content: string) {
+  const { dirname } = await import("path");
+  const { mkdir, writeFile, access } = await import("fs/promises");
+
+  try {
+    await access(filePath);
+    logger.warn(`File already exists, skipping: ${filePath}`);
+  } catch {
+    // File doesn't exist, create it
+    await mkdir(dirname(filePath), { recursive: true });
+    await writeFile(filePath, content);
+  }
+}
+
 export async function generateRoute(name: string, options: RouteOptions) {
   try {
     logger.info(`Generating route: ${name}`, { options });
 
     const routeFile = `${options.path}/${name}.${options.method}.ts`;
 
-    // Route template for Fastify
-    const routeTemplate = `import { FastifyRequest, FastifyReply } from 'fastify';
-import { z } from 'zod';
+    // Route template for Pulzar framework
+    const routeTemplate = `import { z } from 'zod';
 
 // Request validation schemas
 const ${name}ParamsSchema = z.object({
@@ -41,109 +54,143 @@ const ${name}ResponseSchema = z.object({
   updatedAt: z.string().datetime(),
 });
 
-// Route configuration for Fastify
-export const route = {
-  method: '${options.method.toUpperCase()}' as const,
-  url: '/${name}${
-      options.method === "get" && name.endsWith("s") ? "" : "/:id"
-    }',
-  schema: {
-    summary: '${name} ${options.method}',
-    description: '${name} ${options.method} endpoint',
-    tags: ['${name}'],
-    ${options.method !== "get" ? `params: ${name}ParamsSchema,` : ""}
-    ${
-      options.method === "post" ||
-      options.method === "put" ||
-      options.method === "patch"
-        ? `body: ${name}BodySchema,`
-        : ""
-    }
-    querystring: ${name}QuerySchema,
-    response: {
-      200: ${name}ResponseSchema,
-      400: z.object({
-        error: z.string(),
-        details: z.array(z.object({
-          field: z.string(),
-          message: z.string(),
-        })),
-      }),
-      404: z.object({
-        error: z.string(),
-      }),
-      500: z.object({
-        error: z.string(),
-      }),
-    },
-  },
-  handler: ${options.method}${name.charAt(0).toUpperCase() + name.slice(1)},
-};
-
-interface RequestType extends FastifyRequest {
-  params: z.infer<typeof ${name}ParamsSchema>;
-  body: z.infer<typeof ${name}BodySchema>;
-  query: z.infer<typeof ${name}QuerySchema>;
-}
-
-export async function ${options.method}${
-      name.charAt(0).toUpperCase() + name.slice(1)
-    }(
-  request: RequestType,
-  reply: FastifyReply
-) {
+// Route handler function
+export default async function ${name}Route(request: any, reply: any) {
   try {
-    // TODO: Implement your route logic here
-    
-    // Access validated data
-    const { id } = request.params;
-    const query = request.query;
+    // Parse and validate request data
+    ${options.method !== "get" ? `const params = ${name}ParamsSchema.parse(request.params);` : ""}
     ${
       options.method === "post" ||
       options.method === "put" ||
       options.method === "patch"
-        ? "const body = request.body;"
+        ? `const body = ${name}BodySchema.parse(request.body);`
         : ""
     }
+    const query = ${name}QuerySchema.parse(request.query);
+
+    // TODO: Implement your business logic here
+    // You can inject services using DI in the future
     
-    // Example implementation
-    const result = {
-      id: id || crypto.randomUUID(),
-      name: ${
-        options.method === "post" ||
-        options.method === "put" ||
-        options.method === "patch"
-          ? "body.name"
-          : `'Example ${name}'`
-      },
-      email: ${
-        options.method === "post" ||
-        options.method === "put" ||
-        options.method === "patch"
-          ? "body.email"
-          : `'example@example.com'`
-      },
+    ${
+      options.method === "post"
+        ? `// Create new resource
+    const newResource = {
+      id: Date.now().toString(),
+      name: body.name,
+      email: body.email,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
     
-    // Return validated response
-    return reply.code(200).send(result);
+    return reply.code(201).send(newResource);`
+        : options.method === "get" && name.endsWith("s")
+          ? `// List resources
+    const resources = [
+      {
+        id: "1",
+        name: "Example Resource",
+        email: "example@example.com",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    ];
     
+    return {
+      data: resources,
+      pagination: {
+        limit: query.limit,
+        offset: query.offset,
+        total: resources.length,
+      },
+    };`
+          : options.method === "get"
+            ? `// Get single resource
+    const resource = {
+      id: params?.id || "1",
+      name: "Example Resource",
+      email: "example@example.com",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    
+    return resource;`
+            : options.method === "put" || options.method === "patch"
+              ? `// Update resource
+    const updatedResource = {
+      id: params.id,
+      name: body.name,
+      email: body.email,
+      createdAt: "2023-01-01T00:00:00.000Z", // Keep original
+      updatedAt: new Date().toISOString(),
+    };
+    
+    return updatedResource;`
+              : options.method === "delete"
+                ? `// Delete resource
+    // TODO: Implement delete logic
+    
+    return reply.code(204).send();`
+                : `// TODO: Implement ${options.method} logic
+    return { message: "${name} ${options.method} endpoint" };`
+    }
   } catch (error) {
-    // Error handling is automatically done by Fastify error handler
-    throw error;
+    // Validation errors are automatically handled by Zod
+    if (error instanceof z.ZodError) {
+      return reply.code(400).send({
+        error: 'Validation failed',
+        details: error.errors,
+      });
+    }
+    
+    // Other errors
+    logger.error(\`Error in ${name} route:\`, error);
+    return reply.code(500).send({
+      error: 'Internal server error',
+    });
   }
 }
+
+// Route metadata for OpenAPI documentation
+export const schema = {
+  summary: '${name} ${options.method}',
+  description: '${name} ${options.method} endpoint',
+  tags: ['${name}'],
+  ${options.method !== "get" ? `params: ${name}ParamsSchema,` : ""}
+  ${
+    options.method === "post" ||
+    options.method === "put" ||
+    options.method === "patch"
+      ? `body: ${name}BodySchema,`
+      : ""
+  }
+  querystring: ${name}QuerySchema,
+  response: {
+    ${options.method === "post" ? "201" : "200"}: ${name}ResponseSchema,
+    400: z.object({
+      error: z.string(),
+      details: z.array(z.object({
+        field: z.string(),
+        message: z.string(),
+      })),
+    }),
+    ${
+      options.method !== "delete"
+        ? `404: z.object({
+      error: z.string(),
+    }),`
+        : ""
+    }
+    500: z.object({
+      error: z.string(),
+    }),
+  },
+};
 `;
 
-    // Write file
-    const fs = await import("fs/promises");
-    await fs.writeFile(routeFile, routeTemplate);
-
-    logger.info(`Route generated successfully at: ${routeFile}`);
+    await writeFileIfAbsent(routeFile, routeTemplate);
+    logger.success(`✅ Route created: ${routeFile}`);
   } catch (error) {
     logger.error("Failed to generate route", { error });
-    process.exit(1);
+    throw error;
   }
 }
